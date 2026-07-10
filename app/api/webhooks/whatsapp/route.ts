@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { waitUntil } from '@vercel/functions'
+import { NextRequest, NextResponse, after } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@vercel/kv'
 import { createHmac, timingSafeEqual } from 'crypto'
+
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN
@@ -42,16 +44,17 @@ function verifyHubSignature(rawBody: string, signatureHeader: string | null): bo
   }
 
   if (!signatureHeader?.startsWith('sha256=')) {
+    console.error('[WhatsApp] Missing or invalid X-Hub-Signature-256 header')
     return false
   }
 
-  const expected = createHmac('sha256', APP_SECRET).update(rawBody, 'utf8').digest('hex')
-  const received = signatureHeader.slice('sha256='.length)
+  const expected = `sha256=${createHmac('sha256', APP_SECRET).update(rawBody, 'utf8').digest('hex')}`
 
   try {
-    const expectedBuf = Buffer.from(expected, 'hex')
-    const receivedBuf = Buffer.from(received, 'hex')
+    const expectedBuf = Buffer.from(expected, 'utf8')
+    const receivedBuf = Buffer.from(signatureHeader, 'utf8')
     if (expectedBuf.length !== receivedBuf.length) {
+      console.error('[WhatsApp] Signature length mismatch')
       return false
     }
     return timingSafeEqual(expectedBuf, receivedBuf)
@@ -89,9 +92,13 @@ export async function POST(request: NextRequest) {
 
     const body = JSON.parse(rawBody)
 
-    waitUntil(
-      processWebhook(body).catch(err => console.error('[WhatsApp] Async error:', err))
-    )
+    after(async () => {
+      try {
+        await processWebhook(body)
+      } catch (err) {
+        console.error('[WhatsApp] Async error:', err)
+      }
+    })
 
     return NextResponse.json({ success: true }, { status: 200 })
   } catch (error) {
@@ -107,10 +114,9 @@ async function processWebhook(body: any) {
   const entry = body.entry?.[0]
   const change = entry?.changes?.[0]
   const message = change?.value?.messages?.[0]
-  const contact = change?.value?.contacts?.[0]
 
-  if (!message || !contact) {
-    console.log('[WhatsApp] No message or contact found')
+  if (!message) {
+    console.log('[WhatsApp] No message in payload (may be a status update)')
     return
   }
 
@@ -140,7 +146,10 @@ async function processWebhook(body: any) {
   // Get conversation history from KV
   const historyKey = `history:${senderPhone}`
   const rawHistory = await kv.get(historyKey)
-  let conversationHistory: any[] = rawHistory ? JSON.parse(rawHistory) : []
+  let conversationHistory: any[] = []
+  if (rawHistory) {
+    conversationHistory = typeof rawHistory === 'string' ? JSON.parse(rawHistory) : rawHistory
+  }
 
   // Limit to last 20 messages for context
   if (conversationHistory.length > 20) {
@@ -154,6 +163,7 @@ async function processWebhook(body: any) {
   })
 
   try {
+    console.log(`[WhatsApp] Calling Claude for ${senderPhone}...`)
     // Call Claude
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
