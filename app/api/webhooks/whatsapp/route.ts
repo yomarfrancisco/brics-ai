@@ -16,12 +16,12 @@ let kv: ReturnType<typeof createClient> | null = null
 function initKV() {
   if (kv) return kv
 
-  const url = process.env.UPSTASH_REDIS_REST_URL
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN
+  const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN
 
   if (!url || !token) {
     throw new Error(
-      'Upstash Redis not configured. Add UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to .env.local'
+      'Upstash Redis not configured. Add UPSTASH_REDIS_REST_URL/TOKEN or KV_REST_API_URL/TOKEN to .env.local'
     )
   }
 
