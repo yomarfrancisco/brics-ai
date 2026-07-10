@@ -1,0 +1,213 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
+import Anthropic from '@anthropic-ai/sdk'
+import { createClient } from '@vercel/kv'
+import { createHmac, timingSafeEqual } from 'crypto'
+
+const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN
+const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
+const APP_SECRET = process.env.WHATSAPP_APP_SECRET
+
+// Redis client for Upstash integration
+let kv: ReturnType<typeof createClient> | null = null
+
+function initKV() {
+  if (kv) return kv
+
+  const url = process.env.UPSTASH_REDIS_REST_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN
+
+  if (!url || !token) {
+    throw new Error(
+      'Upstash Redis not configured. Add UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to .env.local'
+    )
+  }
+
+  kv = createClient({ url, token })
+  return kv
+}
+
+const anthropic = new Anthropic({
+  apiKey: ANTHROPIC_API_KEY
+})
+
+const SYSTEM_PROMPT = `You are BRICS AI, a helpful assistant for the BRICS AI company. You help users with questions about AI infrastructure development in Southern Africa. Be concise, friendly, and professional. Keep responses under 300 words.`
+
+function verifyHubSignature(rawBody: string, signatureHeader: string | null): boolean {
+  if (!APP_SECRET) {
+    console.error('[WhatsApp] WHATSAPP_APP_SECRET is not configured')
+    return false
+  }
+
+  if (!signatureHeader?.startsWith('sha256=')) {
+    return false
+  }
+
+  const expected = createHmac('sha256', APP_SECRET).update(rawBody, 'utf8').digest('hex')
+  const received = signatureHeader.slice('sha256='.length)
+
+  try {
+    const expectedBuf = Buffer.from(expected, 'hex')
+    const receivedBuf = Buffer.from(received, 'hex')
+    if (expectedBuf.length !== receivedBuf.length) {
+      return false
+    }
+    return timingSafeEqual(expectedBuf, receivedBuf)
+  } catch {
+    return false
+  }
+}
+
+// GET: Meta webhook verification
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams
+  const mode = searchParams.get('hub.mode')
+  const token = searchParams.get('hub.verify_token')
+  const challenge = searchParams.get('hub.challenge')
+
+  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+    console.log('[WhatsApp] Webhook verified')
+    return new NextResponse(challenge, { status: 200 })
+  }
+
+  console.error('[WhatsApp] Verification failed')
+  return new NextResponse('Forbidden', { status: 403 })
+}
+
+// POST: Receive messages
+export async function POST(request: NextRequest) {
+  try {
+    const rawBody = await request.text()
+    const signature = request.headers.get('x-hub-signature-256')
+
+    if (!verifyHubSignature(rawBody, signature)) {
+      console.error('[WhatsApp] Invalid X-Hub-Signature-256')
+      return new NextResponse('Forbidden', { status: 403 })
+    }
+
+    const body = JSON.parse(rawBody)
+
+    waitUntil(
+      processWebhook(body).catch(err => console.error('[WhatsApp] Async error:', err))
+    )
+
+    return NextResponse.json({ success: true }, { status: 200 })
+  } catch (error) {
+    console.error('[WhatsApp] POST error:', error)
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+  }
+}
+
+async function processWebhook(body: any) {
+  const kv = initKV()
+
+  // Extract message event
+  const entry = body.entry?.[0]
+  const change = entry?.changes?.[0]
+  const message = change?.value?.messages?.[0]
+  const contact = change?.value?.contacts?.[0]
+
+  if (!message || !contact) {
+    console.log('[WhatsApp] No message or contact found')
+    return
+  }
+
+  const senderPhone = message.from
+  const messageId = message.id
+  const messageType = message.type
+  const text = message.text?.body || ''
+
+  console.log(`[WhatsApp] Message from ${senderPhone}: ${text}`)
+
+  // Deduplication: check if we already processed this message
+  const dedupeKey = `msg:${messageId}`
+  const alreadyProcessed = await kv.exists(dedupeKey)
+  if (alreadyProcessed) {
+    console.log(`[WhatsApp] Duplicate message ${messageId}, skipping`)
+    return
+  }
+
+  // Mark as processed (expire after 24 hours)
+  await kv.setex(dedupeKey, 86400, '1')
+
+  if (messageType !== 'text' || !text) {
+    console.log(`[WhatsApp] Ignoring non-text message type: ${messageType}`)
+    return
+  }
+
+  // Get conversation history from KV
+  const historyKey = `history:${senderPhone}`
+  const rawHistory = await kv.get(historyKey)
+  let conversationHistory: any[] = rawHistory ? JSON.parse(rawHistory) : []
+
+  // Limit to last 20 messages for context
+  if (conversationHistory.length > 20) {
+    conversationHistory = conversationHistory.slice(-20)
+  }
+
+  // Add user message
+  conversationHistory.push({
+    role: 'user',
+    content: text
+  })
+
+  try {
+    // Call Claude
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1024,
+      system: SYSTEM_PROMPT,
+      messages: conversationHistory
+    })
+
+    const assistantMessage = response.content[0].type === 'text' ? response.content[0].text : ''
+
+    // Add assistant response to history
+    conversationHistory.push({
+      role: 'assistant',
+      content: assistantMessage
+    })
+
+    // Save updated history (expire after 7 days)
+    await kv.setex(historyKey, 604800, JSON.stringify(conversationHistory))
+
+    // Send reply via WhatsApp API
+    await sendWhatsAppMessage(senderPhone, assistantMessage)
+  } catch (error) {
+    console.error('[WhatsApp] Claude error:', error)
+    await sendWhatsAppMessage(senderPhone, 'Sorry, I encountered an error processing your message. Please try again.')
+  }
+}
+
+async function sendWhatsAppMessage(phoneNumber: string, message: string) {
+  try {
+    const response = await fetch(`https://graph.instagram.com/v18.0/${PHONE_NUMBER_ID}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: phoneNumber,
+        type: 'text',
+        text: {
+          body: message
+        }
+      })
+    })
+
+    if (!response.ok) {
+      const err = await response.text()
+      console.error(`[WhatsApp] Send failed (${response.status}):`, err)
+      return
+    }
+
+    const data = await response.json()
+    console.log(`[WhatsApp] Message sent to ${phoneNumber}, ID: ${data.messages?.[0]?.id}`)
+  } catch (error) {
+    console.error('[WhatsApp] Send error:', error)
+  }
+}
