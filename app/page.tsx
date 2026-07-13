@@ -1,13 +1,13 @@
 "use client"
-// Build: v140
+// Build: v141 — courier/delivery UI
 
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
-import { TreePalm, House, Calendar, HandCoins, ChartNoAxesColumn, Star, TowerControl, AlertTriangle, MessageCircle, ThumbsUp } from "lucide-react"
+import { TreePalm, House, Calendar, Package, ChartNoAxesColumn, Star, TowerControl, AlertTriangle, MessageCircle, ThumbsUp } from "lucide-react"
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? ""
 
-// Map component with operator dot, buyer pin, and route
+// Map component with operator dot, stop pin, and route
 // Checkpoint-based map: shows only active leg (operator → destination)
 function MapBackground({ operatorLat, operatorLng, destLat, destLng, destName, dotColor = "green" }: { 
   operatorLat: number, operatorLng: number, destLat: number, destLng: number, destName: string, dotColor?: "green" | "blue" | "amber"
@@ -201,11 +201,11 @@ type User = typeof USERS[number]
 const ROLE_COLORS: Record<string, string> = { principal: "#888888", partner: "#888888", agent: "#888888" }
 
 const BUYERS = [
-  { id: "B01", name: "GP Collections", location: "Menlyn Park, Pretoria", city: "Pretoria", corridor: "ZA", score: 8.4, tier: 1, avgSettlement: 18, weeklyShare: 33, status: "Active", lastUsed: "Today", maxCapacity: "R650k", contact: "Priya Naidoo", phone: "+27 82 441 0022", bankName: "FNB", settled: 47, incidents: 0, lat: -25.786081, lng: 28.283915 },
-  { id: "B02", name: "N.D Gold & Money Exchange", location: "Kempton Park, Johannesburg", city: "Johannesburg", corridor: "ZA", score: 7.1, tier: 2, avgSettlement: 34, weeklyShare: 22, status: "Active", lastUsed: "Today", maxCapacity: "R500k", contact: "David Mokoena", phone: "+27 83 512 7743", bankName: "ABSA", settled: 31, incidents: 1, lat: -26.109523, lng: 28.229430 },
-  { id: "B03", name: "Interchange FX", location: "Bedfordview, Johannesburg", city: "Johannesburg", corridor: "ZA", score: 6.2, tier: 2, avgSettlement: 48, weeklyShare: 22, status: "Active", lastUsed: "Mon", maxCapacity: "R480k", contact: "Thabo Sithole", phone: "+27 72 883 3311", bankName: "Standard Bank", settled: 22, incidents: 2, lat: -26.188233, lng: 28.122086 },
-  { id: "B04", name: "Diamond Dealer", location: "Fordsburg, Johannesburg", city: "Johannesburg", corridor: "ZA", score: 5.1, tier: 3, avgSettlement: 72, weeklyShare: 11, status: "Watch", lastUsed: "Last week", maxCapacity: "R400k", contact: "Rashid Ismail", phone: "+27 84 771 9902", bankName: "Nedbank", settled: 14, incidents: 3, lat: -26.203313, lng: 28.024341 },
-  { id: "B05", name: "Private Trader", location: "Marshalltown, Johannesburg", city: "Johannesburg", corridor: "ZA", score: 4.3, tier: 3, avgSettlement: 95, weeklyShare: 11, status: "Active", lastUsed: "Last week", maxCapacity: "R350k", contact: "Omar Cassim", phone: "+27 73 220 8814", bankName: "Capitec", settled: 9, incidents: 4, lat: -26.205411, lng: 28.046280 },
+  { id: "B01", name: "Menlyn Distribution Hub", location: "Menlyn Park, Pretoria", city: "Pretoria", corridor: "GP", score: 8.4, tier: 1, avgSettlement: 18, weeklyShare: 33, status: "Active", lastUsed: "Today", maxCapacity: "48 parcels", contact: "Priya Naidoo", phone: "+27 82 441 0022", siteHours: "08:00–17:00", settled: 47, incidents: 0, lat: -25.786081, lng: 28.283915 },
+  { id: "B02", name: "Eastgate Logistics Centre", location: "Kempton Park, Johannesburg", city: "Johannesburg", corridor: "GP", score: 7.1, tier: 2, avgSettlement: 34, weeklyShare: 22, status: "Active", lastUsed: "Today", maxCapacity: "36 parcels", contact: "David Mokoena", phone: "+27 83 512 7743", siteHours: "07:30–18:00", settled: 31, incidents: 1, lat: -26.109523, lng: 28.229430 },
+  { id: "B03", name: "Bedfordview Courier Depot", location: "Bedfordview, Johannesburg", city: "Johannesburg", corridor: "GP", score: 6.2, tier: 2, avgSettlement: 48, weeklyShare: 22, status: "Active", lastUsed: "Mon", maxCapacity: "32 parcels", contact: "Thabo Sithole", phone: "+27 72 883 3311", siteHours: "08:00–16:30", settled: 22, incidents: 2, lat: -26.188233, lng: 28.122086 },
+  { id: "B04", name: "Fordsburg Fulfillment", location: "Fordsburg, Johannesburg", city: "Johannesburg", corridor: "GP", score: 5.1, tier: 3, avgSettlement: 72, weeklyShare: 11, status: "Watch", lastUsed: "Last week", maxCapacity: "28 parcels", contact: "Rashid Ismail", phone: "+27 84 771 9902", siteHours: "09:00–15:00", settled: 14, incidents: 3, lat: -26.203313, lng: 28.024341 },
+  { id: "B05", name: "Marshalltown Drop Point", location: "Marshalltown, Johannesburg", city: "Johannesburg", corridor: "GP", score: 4.3, tier: 3, avgSettlement: 95, weeklyShare: 11, status: "Active", lastUsed: "Last week", maxCapacity: "24 parcels", contact: "Omar Cassim", phone: "+27 73 220 8814", siteHours: "10:00–16:00", settled: 9, incidents: 4, lat: -26.205411, lng: 28.046280 },
 ]
 
 type Buyer = typeof BUYERS[number]
@@ -213,34 +213,36 @@ type Buyer = typeof BUYERS[number]
 const BUYER_COLORS = ["#9ecbb8", "#b8c4d8", "#d8c8b0", "#a8a8a8", "#888888"] // brighter pastels
 
 const ALL_CYCLES = [
-  { slot: "MON 09:30", company: "Wolf Digital", director: "Ygor", agent: "Samson", buyerId: "B01", status: "complete", idleTime: 18, margin: 3.4, zar: 450000 },
-  { slot: "MON 13:30", company: "Luima Property", director: "Luizette", agent: "Antonio", buyerId: "B02", status: "active", zar: 450000 },
-  { slot: "TUE 09:30", company: "Imani Beauty", director: "Delsie", agent: "Luciano", buyerId: "B01", status: "scheduled", zar: 450000 },
-  { slot: "TUE 13:30", company: "Crown Hair", director: "Delsie", agent: "Antonio", buyerId: "B03", status: "scheduled", zar: 450000 },
-  { slot: "WED 09:30", company: "Ashu & Co", director: "Luizette", agent: "Samson", buyerId: "B02", status: "scheduled", zar: 450000 },
-  { slot: "WED 13:30", company: "Goblin Research", director: "Ygor", agent: "Samson", buyerId: "B01", status: "scheduled", zar: 450000 },
-  { slot: "THU 09:30", company: "Medcare Supplies", director: "Nucha", agent: "Luciano", buyerId: "B01", status: "scheduled", zar: 450000 },
-  { slot: "THU 13:30", company: "Kenny Construction", director: "Omar", agent: "Antonio", buyerId: "B03", status: "scheduled", zar: 450000 },
-  { slot: "FRI 09:30", company: "Maria's Garden", director: "Olinda", agent: "Samson", buyerId: "B02", status: "scheduled", zar: 450000 },
+  { slot: "MON 09:30", company: "Wolf Digital", director: "Ygor", agent: "Samson", buyerId: "B01", status: "complete", idleTime: 18, parcels: 12 },
+  { slot: "MON 13:30", company: "Luima Property", director: "Luizette", agent: "Antonio", buyerId: "B02", status: "active", parcels: 10 },
+  { slot: "TUE 09:30", company: "Imani Beauty", director: "Delsie", agent: "Luciano", buyerId: "B01", status: "scheduled", parcels: 14 },
+  { slot: "TUE 13:30", company: "Crown Hair", director: "Delsie", agent: "Antonio", buyerId: "B03", status: "scheduled", parcels: 11 },
+  { slot: "WED 09:30", company: "Ashu & Co", director: "Luizette", agent: "Samson", buyerId: "B02", status: "scheduled", parcels: 9 },
+  { slot: "WED 13:30", company: "Goblin Research", director: "Ygor", agent: "Samson", buyerId: "B01", status: "scheduled", parcels: 12 },
+  { slot: "THU 09:30", company: "Medcare Supplies", director: "Nucha", agent: "Luciano", buyerId: "B01", status: "scheduled", parcels: 16 },
+  { slot: "THU 13:30", company: "Kenny Construction", director: "Omar", agent: "Antonio", buyerId: "B03", status: "scheduled", parcels: 8 },
+  { slot: "FRI 09:30", company: "Maria's Garden", director: "Olinda", agent: "Samson", buyerId: "B02", status: "scheduled", parcels: 13 },
 ]
 
 const COMPANIES = [
-  { name: "Wolf Digital", short: "Wolf Digital", director: "Ygor", cumulative: 2340000 },
-  { name: "Lemon Creative", short: "Lemon Creative", director: "Ygor", cumulative: 1890000 },
-  { name: "Goblin Research Advisory", short: "Goblin Research", director: "Ygor", cumulative: 3120000 },
-  { name: "Luima Property Solutions", short: "Luima Property", director: "Luizette", cumulative: 4560000 },
-  { name: "Ashu & Co", short: "Ashu & Co", director: "Luizette", cumulative: 2780000 },
-  { name: "Bridge Consulting", short: "Bridge Consulting", director: "Luizette", cumulative: 1230000 },
-  { name: "Imani Beauty Distributors", short: "Imani Beauty", director: "Delsie", cumulative: 5890000 },
-  { name: "Crown Hair International", short: "Crown Hair", director: "Delsie", cumulative: 6340000 },
-  { name: "Ms Prestige", short: "Ms Prestige", director: "Delsie", cumulative: 3210000 },
-  { name: "Medcare Supplies Africa", short: "Medcare Supplies", director: "Nucha", cumulative: 7890000 },
-  { name: "Mathosa Property Holdings", short: "Mathosa Property", director: "Nucha", cumulative: 4560000 },
-  { name: "Olinda Hospitality Group", short: "Olinda Hospitality", director: "Olinda", cumulative: 9120000 },
-  { name: "Maria's Garden", short: "Maria's Garden", director: "Olinda", cumulative: 13450000 },
-  { name: "Kenny Construction Imports", short: "Kenny Construction", director: "Omar", cumulative: 11200000 },
-  { name: "Moamba Land and Agri", short: "Moamba Land", director: "Omar", cumulative: 8900000 },
+  { name: "Wolf Digital", short: "Wolf Digital", director: "Ygor", cumulative: 47 },
+  { name: "Lemon Creative", short: "Lemon Creative", director: "Ygor", cumulative: 38 },
+  { name: "Goblin Research Advisory", short: "Goblin Research", director: "Ygor", cumulative: 62 },
+  { name: "Luima Property Solutions", short: "Luima Property", director: "Luizette", cumulative: 91 },
+  { name: "Ashu & Co", short: "Ashu & Co", director: "Luizette", cumulative: 56 },
+  { name: "Bridge Consulting", short: "Bridge Consulting", director: "Luizette", cumulative: 25 },
+  { name: "Imani Beauty Distributors", short: "Imani Beauty", director: "Delsie", cumulative: 118 },
+  { name: "Crown Hair International", short: "Crown Hair", director: "Delsie", cumulative: 127 },
+  { name: "Ms Prestige", short: "Ms Prestige", director: "Delsie", cumulative: 64 },
+  { name: "Medcare Supplies Africa", short: "Medcare Supplies", director: "Nucha", cumulative: 158 },
+  { name: "Mathosa Property Holdings", short: "Mathosa Property", director: "Nucha", cumulative: 91 },
+  { name: "Olinda Hospitality Group", short: "Olinda Hospitality", director: "Olinda", cumulative: 182 },
+  { name: "Maria's Garden", short: "Maria's Garden", director: "Olinda", cumulative: 269 },
+  { name: "Kenny Construction Imports", short: "Kenny Construction", director: "Omar", cumulative: 224 },
+  { name: "Moamba Land and Agri", short: "Moamba Land", director: "Omar", cumulative: 178 },
 ]
+
+const MONTHLY_DELIVERY_QUOTA = 200
 
 function getBuyer(id: string) { return BUYERS.find(b => b.id === id) || BUYERS[0] }
 
@@ -252,8 +254,7 @@ type Cycle = {
   buyerId: string
   status: string
   idleTime?: number
-  margin?: number
-  zar: number
+  parcels: number
   buyer: Buyer
 }
 
@@ -436,7 +437,7 @@ function UserSelect({ onSelect, onBack }: { onSelect: (u: User) => void; onBack:
   const groups = [
     { role: "principal", label: "Principal" },
     { role: "partner", label: "Partners" },
-    { role: "agent", label: "Agents" }
+    { role: "agent", label: "Couriers" }
   ]
   return (
     <div style={{ position:"relative", minHeight:"100vh", fontFamily:mono, color:C.text }}>
@@ -481,7 +482,7 @@ function UserSelect({ onSelect, onBack }: { onSelect: (u: User) => void; onBack:
           {/* Footer divider and disclaimer */}
           <div style={{ ...fade(0.85), width:"100%", height:1, backgroundColor:"rgba(255,255,255,0.15)", margin:"32px 0 16px" }}/>
           <div style={{ ...fade(0.95), fontSize:9, color:"rgba(255,255,255,0.25)", fontFamily:mono }}>
-            YXK does not broadly solicit investment.
+            Operational access only. Authorised personnel.
           </div>
         </div>
       </div>
@@ -563,18 +564,18 @@ function IncidentMode({ onClose }: { onClose: () => void }) {
   useEffect(() => { const t = setInterval(()=>setPt(p=>Math.max(0,p-1)),1000); return ()=>clearInterval(t) }, [])
   const steps = [
     { title:"Secure personal safety", body:"Ensure your immediate safety before any other action." },
-    { title:"Notify director immediately", body:"Send WhatsApp to Ygor Omar Francisco now.\nState: Loss Event, amount, location." },
+    { title:"Notify dispatch lead immediately", body:"Send WhatsApp to Ygor Omar Francisco now.\nState: Delivery incident, shipment ref, location." },
     { title:"Contact SAPS", body:"Obtain case number within 2 hours.", timer:true },
     { title:"Preserve all evidence", body:"Do not delete any messages, photos, or records." },
-    { title:"Notify insurer", body:"Same business day deadline. Case number, amount, incident details." },
-    { title:"Complete incident report", body:"Open Handover Receipt & Incident Form.\nComplete Loss Event section in full." },
+    { title:"Notify insurer", body:"Same business day deadline. Case number, shipment details, incident summary." },
+    { title:"Complete incident report", body:"Open Delivery Incident Form.\nComplete the incident section in full." },
   ]
   return (
     <div style={{ position:"fixed", inset:0, backgroundColor:"#0d0000", zIndex:500, maxWidth:420, margin:"0 auto", display:"flex", flexDirection:"column", fontFamily:mono }}>
       <div style={{ backgroundColor:"#4a0000", padding:"18px 20px", display:"flex", justifyContent:"space-between" }}>
         <div>
           <div style={{ fontSize:9, letterSpacing:"0.22em", color:"#f87171" }}>INCIDENT MODE</div>
-          <div style={{ fontSize:13, fontWeight:600, color:"#fecaca", marginTop:2 }}>Loss Event — Active Cycle</div>
+          <div style={{ fontSize:13, fontWeight:600, color:"#fecaca", marginTop:2 }}>Delivery Incident — Active Run</div>
         </div>
         <div style={{ textAlign:"right" }}>
           <div style={{ fontSize:9, color:"#f87171" }}>OWNER</div>
@@ -665,19 +666,19 @@ function BuyerDetail({ buyer, onBack }: { buyer: Buyer; onBack: () => void }) {
           {/* Stats grid */}
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:16 }}>
             <div style={{ backgroundColor:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, padding:14 }}>
-              <div style={{ fontSize:9, letterSpacing:"0.35em", color:"rgba(255,255,255,0.5)", textTransform:"uppercase" }}>Avg Settlement</div>
+              <div style={{ fontSize:9, letterSpacing:"0.35em", color:"rgba(255,255,255,0.5)", textTransform:"uppercase" }}>Avg Handover</div>
               <div style={{ fontSize:22, fontWeight:400, color:buyer.avgSettlement<20?C.green:buyer.avgSettlement<40?C.amber:C.red, marginTop:6, fontFamily:serif }}>{buyer.avgSettlement} min</div>
             </div>
             <div style={{ backgroundColor:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, padding:14 }}>
-              <div style={{ fontSize:9, letterSpacing:"0.35em", color:"rgba(255,255,255,0.5)", textTransform:"uppercase" }}>Weekly Share</div>
+              <div style={{ fontSize:9, letterSpacing:"0.35em", color:"rgba(255,255,255,0.5)", textTransform:"uppercase" }}>Weekly Volume</div>
               <div style={{ fontSize:22, fontWeight:400, color:C.textHigh, marginTop:6, fontFamily:serif }}>{buyer.weeklyShare}%</div>
             </div>
             <div style={{ backgroundColor:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, padding:14 }}>
-              <div style={{ fontSize:9, letterSpacing:"0.35em", color:"rgba(255,255,255,0.5)", textTransform:"uppercase" }}>Max Capacity</div>
+              <div style={{ fontSize:9, letterSpacing:"0.35em", color:"rgba(255,255,255,0.5)", textTransform:"uppercase" }}>Daily Capacity</div>
               <div style={{ fontSize:22, fontWeight:400, color:C.textHigh, marginTop:6, fontFamily:serif }}>{buyer.maxCapacity}</div>
             </div>
             <div style={{ backgroundColor:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, padding:14 }}>
-              <div style={{ fontSize:9, letterSpacing:"0.35em", color:"rgba(255,255,255,0.5)", textTransform:"uppercase" }}>Cycles Settled</div>
+              <div style={{ fontSize:9, letterSpacing:"0.35em", color:"rgba(255,255,255,0.5)", textTransform:"uppercase" }}>Runs Completed</div>
               <div style={{ fontSize:22, fontWeight:400, color:C.green, marginTop:6, fontFamily:serif }}>{buyer.settled}</div>
             </div>
           </div>
@@ -685,9 +686,9 @@ function BuyerDetail({ buyer, onBack }: { buyer: Buyer; onBack: () => void }) {
           {/* Contact info */}
           <div style={{ marginBottom:16 }}>
             {[
-              ["Primary", buyer.contact],
+              ["Site contact", buyer.contact],
               ["Phone", buyer.phone, C.blue],
-              ["Bank", buyer.bankName],
+              ["Hours", buyer.siteHours],
             ].map(([label, value, col])=>(
               <div key={label as string} style={{ display:"flex", justifyContent:"space-between", padding:"8px 0", borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
                 <span style={{ fontSize:11, color:C.textMid }}>{label}</span>
@@ -720,29 +721,29 @@ function CycleDetail({ cycle, onBack, onBuyerTap, onIncident, timerData, leg }: 
   const allDone = checks.every(Boolean)
 
   const checkItems = [
-    "Advance notice sent to Inter Africa",
+    "Pickup notice sent to origin warehouse",
     "Acknowledgment received",
-    `Agent confirmed — ${cycle.agent}`,
-    "Agent ID current",
-    "Primary buyer confirmed — rate and amount",
-    "Backup buyer identified",
-    "Backup buyer score above minimum",
-    "Cumulative exchange below R18M",
-    "Available capital sufficient",
-    "No active incident on this company",
+    `Courier confirmed — ${cycle.agent}`,
+    "Courier ID current",
+    "Primary stop confirmed — window and parcel count",
+    "Backup stop identified",
+    "Backup stop rating above minimum",
+    "Monthly volume below quota",
+    "Fleet capacity sufficient",
+    "No active incident on this account",
   ]
 
   // Vertical timeline with segment times
   const timelineSteps = [
     { id: "hq", label: "HQ", time: "—", done: true, active: false },
-    { id: "seller", label: "Inter Africa", time: "12:34", done: cycleStatus !== "dispatched", active: cycleStatus === "dispatched" },
-    { id: "buyer", label: cycle.buyer.name, time: cycleStatus === "arrived" ? `${String(mins).padStart(2,"0")}:${String(secs).padStart(2,"0")}` : "—", done: cycleStatus === "exchanged" || cycleStatus === "returning", active: cycleStatus === "arrived" },
+    { id: "pickup", label: "Origin Warehouse", time: "12:34", done: cycleStatus !== "dispatched", active: cycleStatus === "dispatched" },
+    { id: "stop", label: cycle.buyer.name, time: cycleStatus === "arrived" ? `${String(mins).padStart(2,"0")}:${String(secs).padStart(2,"0")}` : "—", done: cycleStatus === "exchanged" || cycleStatus === "returning", active: cycleStatus === "arrived" },
     { id: "return", label: "HQ", time: "—", done: false, active: cycleStatus === "exchanged" || cycleStatus === "returning" },
   ]
 
   const openWhatsApp = () => {
     const phone = cycle.buyer.phone?.replace(/\s/g, "") || ""
-    const message = encodeURIComponent(`Hi ${cycle.buyer.contact}, following up on the exchange. Please confirm status.`)
+    const message = encodeURIComponent(`Hi ${cycle.buyer.contact}, following up on delivery ${cycle.company}. Please confirm status.`)
     window.open(`https://wa.me/${phone}?text=${message}`, "_blank")
   }
 
@@ -806,7 +807,7 @@ function CycleDetail({ cycle, onBack, onBuyerTap, onIncident, timerData, leg }: 
               
               {/* Total */}
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:16, paddingTop:16, borderTop:"1px solid rgba(255,255,255,0.1)" }}>
-                <span style={{ fontSize:9, letterSpacing:"0.15em", color:C.textMid, textTransform:"uppercase" }}>Total cycle time</span>
+                <span style={{ fontSize:9, letterSpacing:"0.15em", color:C.textMid, textTransform:"uppercase" }}>Total run time</span>
                 <span style={{ fontSize:18, fontWeight:400, color:tc, fontVariantNumeric:"tabular-nums", fontFamily:mono }}>{formatted}</span>
               </div>
             </div>
@@ -883,12 +884,12 @@ function CycleDetail({ cycle, onBack, onBuyerTap, onIncident, timerData, leg }: 
             {/* Timeline - all complete */}
             <div style={{ marginBottom:32 }}>
               {[
-                { label: "Instruction issued", time: "00:00" },
-                { label: "EFT sent — R450,000", time: "00:43" },
-                { label: "USD collected — $25,000", time: "01:30" },
-                { label: "Handover complete", time: "02:02" },
-                { label: "WhatsApp sent", time: "02:02" },
-                { label: "ZAR settled — R465,750", time: "02:20" },
+                { label: "Run dispatched", time: "00:00" },
+                { label: "Pickup confirmed — 12 parcels", time: "00:43" },
+                { label: "In transit", time: "01:30" },
+                { label: "Delivered — signed off", time: "02:02" },
+                { label: "POD sent", time: "02:02" },
+                { label: "Run closed", time: "02:20" },
               ].map((step, i) => (
                 <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:12 }}>
@@ -904,19 +905,19 @@ function CycleDetail({ cycle, onBack, onBuyerTap, onIncident, timerData, leg }: 
               
               {/* Total */}
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:16, paddingTop:16, borderTop:"1px solid rgba(255,255,255,0.1)" }}>
-                <span style={{ fontSize:9, letterSpacing:"0.15em", color:C.textMid, textTransform:"uppercase" }}>Total cycle time</span>
+                <span style={{ fontSize:9, letterSpacing:"0.15em", color:C.textMid, textTransform:"uppercase" }}>Total run time</span>
                 <span style={{ fontSize:18, fontWeight:400, color:C.green, fontVariantNumeric:"tabular-nums", fontFamily:mono }}>18:00.00</span>
               </div>
               
-              {/* Margin and Profit tiles - matching home page style */}
+              {/* Run summary tiles */}
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginTop:16 }}>
                 <div style={{ backgroundColor:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, padding:14 }}>
-                  <div style={{ fontSize:9, letterSpacing:"0.35em", color:"rgba(255,255,255,0.5)", textTransform:"uppercase" }}>Margin</div>
-                  <div style={{ fontSize:22, fontWeight:400, color:C.textHigh, marginTop:6, fontFamily:serif }}>3.40%</div>
+                  <div style={{ fontSize:9, letterSpacing:"0.35em", color:"rgba(255,255,255,0.5)", textTransform:"uppercase" }}>Parcels</div>
+                  <div style={{ fontSize:22, fontWeight:400, color:C.textHigh, marginTop:6, fontFamily:serif }}>{cycle.parcels}</div>
                 </div>
                 <div style={{ backgroundColor:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, padding:14 }}>
-                  <div style={{ fontSize:9, letterSpacing:"0.35em", color:"rgba(255,255,255,0.5)", textTransform:"uppercase" }}>Profit</div>
-                  <div style={{ fontSize:22, fontWeight:400, color:C.green, marginTop:6, fontFamily:serif }}>R15,300</div>
+                  <div style={{ fontSize:9, letterSpacing:"0.35em", color:"rgba(255,255,255,0.5)", textTransform:"uppercase" }}>On time</div>
+                  <div style={{ fontSize:22, fontWeight:400, color:C.green, marginTop:6, fontFamily:serif }}>Yes</div>
                 </div>
               </div>
             </div>
@@ -924,7 +925,7 @@ function CycleDetail({ cycle, onBack, onBuyerTap, onIncident, timerData, leg }: 
 
           {/* SCHEDULED */}
           {cycle.status==="scheduled"&&<>
-            <div style={{ fontSize:10, letterSpacing:"0.15em", color:C.textMid, textTransform:"uppercase", marginBottom:14 }}>Pre-cycle checklist</div>
+            <div style={{ fontSize:10, letterSpacing:"0.15em", color:C.textMid, textTransform:"uppercase", marginBottom:14 }}>Pre-run checklist</div>
             {checkItems.map((item,i)=>(
               <div key={i} onClick={()=>setChecks(c=>{const n=[...c];n[i]=!n[i];return n;})}
                 style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 0", borderBottom:`1px solid rgba(255,255,255,0.08)`, cursor:"pointer", opacity:checks[i]?1:0.6 }}>
@@ -938,12 +939,12 @@ function CycleDetail({ cycle, onBack, onBuyerTap, onIncident, timerData, leg }: 
                 <div style={{ fontSize:20, fontWeight:600, color:allDone?C.green:C.amber, marginTop:3 }}>{allDone?"GO":"PENDING"}</div>
               </div>
               <div style={{ textAlign:"right" }}>
-                <div style={{ fontSize:9, color:C.textMid, letterSpacing:"0.12em" }}>MIN RATE</div>
-                <div style={{ fontSize:20, fontWeight:600, marginTop:3 }}>R18.34<span style={{ fontSize:11, color:C.textMid }}>/USD</span></div>
+                <div style={{ fontSize:9, color:C.textMid, letterSpacing:"0.12em" }}>TARGET SLA</div>
+                <div style={{ fontSize:20, fontWeight:600, marginTop:3 }}>45<span style={{ fontSize:11, color:C.textMid }}> min</span></div>
               </div>
             </div>
             <button style={{ width:"100%", backgroundColor:allDone?C.green:"rgba(255,255,255,0.08)", border:`1px solid ${allDone?C.green:"rgba(255,255,255,0.15)"}`, borderRadius:8, padding:14, fontSize:10, letterSpacing:"0.18em", textTransform:"uppercase", color:allDone?"#fff":C.textLow, cursor:allDone?"pointer":"not-allowed", fontFamily:mono }}>
-              {allDone?"ACTIVATE CYCLE":`COMPLETE CHECKLIST (${10-checks.filter(Boolean).length} remaining)`}
+              {allDone?"DISPATCH RUN":`COMPLETE CHECKLIST (${10-checks.filter(Boolean).length} remaining)`}
             </button>
           </>}
         </div>
@@ -971,27 +972,27 @@ function DirectorView({ user, onLogout }: { user: User; onLogout: () => void }) 
       <div style={{ padding:"20px 20px 0" }}>
         <SectionLabel>Your companies</SectionLabel>
         {myCompanies.map((co,i)=>{
-          const pct=(co.cumulative/20000000)*100
+          const pct=(co.cumulative/MONTHLY_DELIVERY_QUOTA)*100
           const col=pct<70?C.green:pct<90?C.amber:C.red
           return <div key={i} style={{ marginBottom:18, padding:"0 20px" }}>
             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:5 }}>
               <span style={{ fontSize:12, color:C.text }}>{co.name}</span>
-              <span style={{ fontSize:11, color:col }}>R{(co.cumulative/1e6).toFixed(2)}M</span>
+              <span style={{ fontSize:11, color:col }}>{co.cumulative} runs</span>
             </div>
             <Bar pct={pct} color={col}/>
             <div style={{ display:"flex", justifyContent:"space-between", marginTop:3 }}>
-              <span style={{ fontSize:9, color:C.textLow }}>of R20M facility</span>
+              <span style={{ fontSize:9, color:C.textLow }}>of {MONTHLY_DELIVERY_QUOTA} monthly quota</span>
               <span style={{ fontSize:9, color:C.textLow }}>{pct.toFixed(0)}%</span>
             </div>
           </div>
         })}
       </div>
       <Divider/>
-      <SectionLabel>Your cycles this week</SectionLabel>
+      <SectionLabel>Your runs this week</SectionLabel>
       {myCycles.map((c,i)=><CycleRow key={i} cycle={c} showLocation/>)}
       <div style={{ margin:"24px 20px 0", padding:"14px 16px", backgroundColor:C.surface, border:`1px solid ${C.border}`, borderRadius:8 }}>
-        <div style={{ fontSize:10, color:C.textMid, letterSpacing:"0.1em" }}>Notice obligations</div>
-        <div style={{ fontSize:12, color:C.text, marginTop:8 }}>Next: <span style={{ color:C.amber }}>THU 09:30 — 48h advance required</span></div>
+        <div style={{ fontSize:10, color:C.textMid, letterSpacing:"0.1em" }}>Scheduling</div>
+        <div style={{ fontSize:12, color:C.text, marginTop:8 }}>Next: <span style={{ color:C.amber }}>THU 09:30 — 48h pickup notice required</span></div>
       </div>
     </div>
   )
@@ -1010,22 +1011,22 @@ function AgentView({ user, onLogout }: { user: User; onLogout: () => void }) {
           <span style={{ fontSize:13, letterSpacing:"0.22em", color:"rgba(255,255,255,0.88)", fontFamily:mono, textTransform:"uppercase", fontWeight:500 }}>YXK</span>
         </div>
         <div style={{ display:"flex", gap:10, alignItems:"center" }}>
-          <Tag color={ROLE_COLORS.agent}>Agent</Tag>
+          <Tag color={ROLE_COLORS.agent}>Courier</Tag>
           <button onClick={onLogout} style={{ background:"none", border:"none", color:C.textLow, cursor:"pointer", fontSize:16 }}>↩</button>
         </div>
       </div>
       <div style={{ padding:20 }}>
         <div style={{ backgroundColor:C.surface, border:`1px solid ${C.amber}28`, borderRadius:8, padding:16 }}>
           <Tag color={C.amber}>{cycle.slot}</Tag>
-          <div style={{ fontSize:18, fontWeight:600, color:C.text, marginTop:10 }}>Collection</div>
-          <div style={{ fontSize:12, color:C.textMid, marginTop:4 }}>Inter Africa — Benoni</div>
+          <div style={{ fontSize:18, fontWeight:600, color:C.text, marginTop:10 }}>Pickup</div>
+          <div style={{ fontSize:12, color:C.textMid, marginTop:4 }}>Eastgate Warehouse — Kempton Park</div>
           <div style={{ marginTop:14, paddingTop:14, borderTop:`1px solid ${C.border}` }}>
             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
-              <span style={{ fontSize:10, color:C.textMid, letterSpacing:"0.1em" }}>EXPECTED</span>
-              <span style={{ fontSize:14, fontWeight:600 }}>$25,000</span>
+              <span style={{ fontSize:10, color:C.textMid, letterSpacing:"0.1em" }}>PARCELS</span>
+              <span style={{ fontSize:14, fontWeight:600 }}>{cycle.parcels}</span>
             </div>
             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
-              <span style={{ fontSize:10, color:C.textMid, letterSpacing:"0.1em" }}>BUYER</span>
+              <span style={{ fontSize:10, color:C.textMid, letterSpacing:"0.1em" }}>DROP POINT</span>
               <span style={{ fontSize:12 }}>{cycle.buyer.name}</span>
             </div>
             <div style={{ display:"flex", justifyContent:"space-between" }}>
@@ -1037,27 +1038,27 @@ function AgentView({ user, onLogout }: { user: User; onLogout: () => void }) {
         <div style={{ marginTop:20 }}>
           {step===0&&<button onClick={()=>setStep(1)} style={{ width:"100%", backgroundColor:C.blue, border:"none", borderRadius:8, padding:16, fontSize:11, letterSpacing:"0.18em", textTransform:"uppercase", color:"#fff", cursor:"pointer", fontFamily:mono }}>→ I AM ON MY WAY</button>}
           {step===1&&<>
-            <div style={{ backgroundColor:`${C.blue}14`, border:`1px solid ${C.blue}28`, borderRadius:8, padding:"12px 14px", marginBottom:12, fontSize:11, color:C.blue }}>En route to Inter Africa</div>
+            <div style={{ backgroundColor:`${C.blue}14`, border:`1px solid ${C.blue}28`, borderRadius:8, padding:"12px 14px", marginBottom:12, fontSize:11, color:C.blue }}>En route to Eastgate Warehouse</div>
             <button onClick={()=>setStep(2)} style={{ width:"100%", backgroundColor:C.green, border:"none", borderRadius:8, padding:16, fontSize:11, letterSpacing:"0.18em", textTransform:"uppercase", color:"#fff", cursor:"pointer", fontFamily:mono }}>→ I HAVE COLLECTED</button>
           </>}
           {step===2&&<>
             <div style={{ backgroundColor:C.surface, border:`1px solid ${C.border}`, borderRadius:8, padding:14, marginBottom:12 }}>
               <div style={{ fontSize:10, color:C.textMid, letterSpacing:"0.15em", marginBottom:10 }}>CONFIRM BEFORE HANDOVER</div>
-              {[{key:"a",label:"Amount counted and verified"},{key:"b",label:"Recipient identity verified"}].map(item=>(
+              {[{key:"a",label:"Parcel count verified"},{key:"b",label:"Recipient identity verified"}].map(item=>(
                 <div key={item.key} onClick={()=>setChecked(c=>({...c,[item.key]:!c[item.key as keyof typeof c]}))} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0", borderBottom:`1px solid ${C.border}`, cursor:"pointer" }}>
                   <div style={{ width:18, height:18, borderRadius:"50%", border:`1.5px solid ${checked[item.key as keyof typeof checked]?C.green:C.border}`, backgroundColor:checked[item.key as keyof typeof checked]?C.green:"transparent", display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, color:"#fff", flexShrink:0 }}>{checked[item.key as keyof typeof checked]?"✓":""}</div>
                   <span style={{ fontSize:12, color:checked[item.key as keyof typeof checked]?C.text:C.textMid }}>{item.label}</span>
                 </div>
               ))}
             </div>
-            <input placeholder="Amount handed over (ZAR)" style={{ width:"100%", backgroundColor:C.surface, border:`1px solid ${C.border}`, borderRadius:6, padding:12, color:C.text, fontSize:12, fontFamily:mono, boxSizing:"border-box", marginBottom:8 }}/>
+            <input placeholder="Parcels handed over" style={{ width:"100%", backgroundColor:C.surface, border:`1px solid ${C.border}`, borderRadius:6, padding:12, color:C.text, fontSize:12, fontFamily:mono, boxSizing:"border-box", marginBottom:8 }}/>
             <input placeholder="Handover location" style={{ width:"100%", backgroundColor:C.surface, border:`1px solid ${C.border}`, borderRadius:6, padding:12, color:C.text, fontSize:12, fontFamily:mono, boxSizing:"border-box", marginBottom:12 }}/>
             <button onClick={()=>{if(checked.a&&checked.b)setStep(3);}} style={{ width:"100%", backgroundColor:(checked.a&&checked.b)?C.green:C.surfaceHigh, border:"none", borderRadius:8, padding:16, fontSize:11, letterSpacing:"0.18em", textTransform:"uppercase", color:(checked.a&&checked.b)?"#fff":C.textLow, cursor:(checked.a&&checked.b)?"pointer":"not-allowed", fontFamily:mono }}>→ RECORD HANDOVER</button>
           </>}
           {step===3&&<div style={{ textAlign:"center", padding:"32px 0" }}>
             <div style={{ fontSize:52 }}>✓</div>
             <div style={{ fontSize:18, fontWeight:600, color:C.green, marginTop:12 }}>Handover complete</div>
-            <div style={{ fontSize:12, color:C.textMid, marginTop:8 }}>Your role for this cycle is complete</div>
+            <div style={{ fontSize:12, color:C.textMid, marginTop:8 }}>Your role for this run is complete</div>
           </div>}
         </div>
       </div>
@@ -1070,14 +1071,14 @@ function OperatorApp({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [screen, setScreen] = useState("home")
   const [sel, setSel] = useState<Cycle | null>(null)
   const [selBuyer, setSelBuyer] = useState<Buyer | null>(null)
-  const [currentLeg, setCurrentLeg] = useState<1 | 2>(2) // 1 = to seller, 2 = to buyer
+  const [currentLeg, setCurrentLeg] = useState<1 | 2>(2) // 1 = to pickup, 2 = to drop point
   
   // Active drops for scaled operations (multiple simultaneous cycles)
-  // leg: 1 = to USD seller (carrying ZAR), 2 = to USD buyer (carrying USD)
+  // leg: 1 = to pickup, 2 = to drop point
   const activeDrops = [
-    { id: 1, city: "JHB", leg: 2 as 1|2, operatorLat: -26.1520, operatorLng: 28.0870, destLat: -26.1095, destLng: 28.2294, destName: "N.D. Gold & Money Ex.", carrying: "$26k", profit: "R340", dotColor: "green" as "green"|"blue"|"amber" },
-    { id: 2, city: "JHB", leg: 1 as 1|2, operatorLat: -26.2041, operatorLng: 28.0473, destLat: -26.1629, destLng: 28.3234, destName: "Inter Africa · Benoni", carrying: "R450k", profit: "R15,750", dotColor: "blue" as "green"|"blue"|"amber" },
-    { id: 3, city: "PTA", leg: 2 as 1|2, operatorLat: -25.7461, operatorLng: 28.1881, destLat: -25.7860, destLng: 28.2839, destName: "GP Collections · Menlyn", carrying: "$18k", profit: "R520", dotColor: "amber" as "green"|"blue"|"amber" },
+    { id: 1, city: "JHB", leg: 2 as 1|2, operatorLat: -26.1520, operatorLng: 28.0870, destLat: -26.1095, destLng: 28.2294, destName: "Eastgate Logistics", load: "6 parcels", stops: "2 stops", dotColor: "green" as "green"|"blue"|"amber" },
+    { id: 2, city: "JHB", leg: 1 as 1|2, operatorLat: -26.2041, operatorLng: 28.0473, destLat: -26.1629, destLng: 28.3234, destName: "Origin · Kempton Park", load: "10 parcels", stops: "3 stops", dotColor: "blue" as "green"|"blue"|"amber" },
+    { id: 3, city: "PTA", leg: 2 as 1|2, operatorLat: -25.7461, operatorLng: 28.1881, destLat: -25.7860, destLng: 28.2839, destName: "Menlyn Distribution", load: "8 parcels", stops: "1 stop", dotColor: "amber" as "green"|"blue"|"amber" },
   ]
   const [currentDropIndex, setCurrentDropIndex] = useState(0)
   const [pillExpanded, setPillExpanded] = useState(true)
@@ -1100,7 +1101,7 @@ function OperatorApp({ user, onLogout }: { user: User; onLogout: () => void }) {
 
   const goToPage = (id: string) => { setScreen(id); setSel(null); setSelBuyer(null); }
 
-  const nav = [{id:"home",icon:House},{id:"schedule",icon:Calendar},{id:"buyers",icon:HandCoins},{id:"stats",icon:ChartNoAxesColumn}]
+  const nav = [{id:"home",icon:House},{id:"schedule",icon:Calendar},{id:"stops",icon:Package},{id:"stats",icon:ChartNoAxesColumn}]
 
   // Home screen computed values
   const activeCycle = CYCLES.find(c => c.status === "active")
@@ -1110,8 +1111,8 @@ function OperatorApp({ user, onLogout }: { user: User; onLogout: () => void }) {
 
   // Schedule screen computed values
   const scheduleActions = [
-    { id: "a1", director: "Luizette De Santo", action: "48h notice to Inter Africa required", company: "Luima Property", slot: "MON 13:30" },
-    { id: "a2", director: "Delsie Somaes", action: "48h notice to Inter Africa required", company: "Imani Beauty", slot: "TUE 09:30" },
+    { id: "a1", director: "Luizette De Santo", action: "48h pickup notice to Eastgate Warehouse required", company: "Luima Property", slot: "MON 13:30" },
+    { id: "a2", director: "Delsie Somaes", action: "48h pickup notice to Bedfordview Depot required", company: "Imani Beauty", slot: "TUE 09:30" },
   ].filter(a => !dismissedActions.includes(a.id))
 
   // Show all cycles regardless of status (Today + Tomorrow view)
@@ -1125,7 +1126,7 @@ function OperatorApp({ user, onLogout }: { user: User; onLogout: () => void }) {
   return (
     <div style={{ position:"relative", minHeight:"100vh", maxWidth:420, margin:"0 auto", fontFamily:mono, color:C.text }}>
       {/* Persistent Map backdrop - shared canvas for home, schedule, buyers, stats, and cycle detail */}
-      {(screen === "home" || screen === "schedule" || screen === "buyers" || screen === "stats" || screen === "cycle") && (
+      {(screen === "home" || screen === "schedule" || screen === "stops" || screen === "stats" || screen === "cycle") && (
         <div style={{ position:"fixed", inset:0, zIndex:0 }}>
 <MapBackground
   key={screen === "home" ? `home-map-${currentDropIndex}` : "other-map"}
@@ -1145,7 +1146,7 @@ function OperatorApp({ user, onLogout }: { user: User; onLogout: () => void }) {
       )}
       
       {/* Fallback backdrop for other screens */}
-      {screen !== "home" && screen !== "schedule" && screen !== "buyers" && screen !== "stats" && screen !== "cycle" && (
+      {screen !== "home" && screen !== "schedule" && screen !== "stops" && screen !== "stats" && screen !== "cycle" && (
         <div style={{ position:"fixed", inset:0, zIndex:0 }}>
           <img src={HERO_IMG} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
           <div style={{ position:"absolute", inset:0, backgroundColor:"rgba(0,0,0,0.97)" }} />
@@ -1195,7 +1196,7 @@ function OperatorApp({ user, onLogout }: { user: User; onLogout: () => void }) {
           >
             {pillExpanded && (
               <span style={{ fontSize:10, color:"rgba(255,255,255,0.75)", letterSpacing:"0.18em", textTransform:"uppercase" }}>
-                {activeDrops[currentDropIndex].city} · Cycle {activeDrops[currentDropIndex].id}
+                {activeDrops[currentDropIndex].city} · Run {activeDrops[currentDropIndex].id}
               </span>
             )}
             <TowerControl size={12} style={{ color:"rgba(255,255,255,0.75)" }} />
@@ -1206,7 +1207,7 @@ function OperatorApp({ user, onLogout }: { user: User; onLogout: () => void }) {
             onClick={() => setSel(CYCLES.find(c=>c.status==="active") || CYCLES[0])}
             style={{ ...fade(0.15), position:"relative", zIndex:2, margin:"45vh 20px 20px", padding:"24px", backgroundColor:"rgba(0,0,0,0.75)", backdropFilter:"blur(20px)", borderRadius:12, border:"1px solid rgba(255,255,255,0.1)", cursor:"pointer" }}
           >
-            <div style={{ fontSize:9, letterSpacing:"0.35em", color:"rgba(255,255,255,0.5)", textTransform:"uppercase", marginBottom:8 }}>{activeDrops[currentDropIndex].leg === 1 ? "En route to USD seller" : "In transit to USD buyer"}</div>
+            <div style={{ fontSize:9, letterSpacing:"0.35em", color:"rgba(255,255,255,0.5)", textTransform:"uppercase", marginBottom:8 }}>{activeDrops[currentDropIndex].leg === 1 ? "En route to pickup" : "In transit to drop point"}</div>
             <div style={{ display:"flex", alignItems:"baseline", gap:4 }}>
               <div style={{ fontSize:64, fontWeight:400, color:tc, letterSpacing:"-0.02em", lineHeight:1, fontFamily:mono }}>
                 {formatted}
@@ -1216,12 +1217,12 @@ function OperatorApp({ user, onLogout }: { user: User; onLogout: () => void }) {
             {/* Cards row */}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginTop:24 }}>
               <div style={{ backgroundColor:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, padding:14 }}>
-                <div style={{ fontSize:9, letterSpacing:"0.35em", color:"rgba(255,255,255,0.5)", textTransform:"uppercase" }}>Carrying</div>
-                <div style={{ fontSize:22, fontWeight:400, color:C.amber, marginTop:6, fontFamily:serif }}>{activeDrops[currentDropIndex].carrying}</div>
+                <div style={{ fontSize:9, letterSpacing:"0.35em", color:"rgba(255,255,255,0.5)", textTransform:"uppercase" }}>Load</div>
+                <div style={{ fontSize:22, fontWeight:400, color:C.amber, marginTop:6, fontFamily:serif }}>{activeDrops[currentDropIndex].load}</div>
               </div>
               <div style={{ backgroundColor:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, padding:14 }}>
-                <div style={{ fontSize:9, letterSpacing:"0.35em", color:"rgba(255,255,255,0.5)", textTransform:"uppercase" }}>Est. profit</div>
-                <div style={{ fontSize:22, fontWeight:400, color:C.green, marginTop:6, fontFamily:serif }}>{activeDrops[currentDropIndex].profit}</div>
+                <div style={{ fontSize:9, letterSpacing:"0.35em", color:"rgba(255,255,255,0.5)", textTransform:"uppercase" }}>Stops left</div>
+                <div style={{ fontSize:22, fontWeight:400, color:C.green, marginTop:6, fontFamily:serif }}>{activeDrops[currentDropIndex].stops}</div>
               </div>
             </div>
           </div>
@@ -1231,7 +1232,7 @@ function OperatorApp({ user, onLogout }: { user: User; onLogout: () => void }) {
             <CycleDetail 
               cycle={sel} 
               onBack={() => setSel(null)} 
-              onBuyerTap={(b) => { setSelBuyer(b); setScreen("buyer"); }}
+              onBuyerTap={(b) => { setSelBuyer(b); setScreen("stops"); }}
               onIncident={() => {}}
               timerData={{ mins, secs, formatted }}
               leg={activeDrops[currentDropIndex]?.leg || 1}
@@ -1284,7 +1285,7 @@ function OperatorApp({ user, onLogout }: { user: User; onLogout: () => void }) {
               <div style={{ fontSize:26, fontWeight:400, color:C.text, fontFamily:serif, marginBottom:20 }}>Today</div>
               
               {todayCycles.length === 0 ? (
-                <div style={{ fontSize:12, color:C.textLow }}>No cycles scheduled</div>
+                <div style={{ fontSize:12, color:C.textLow }}>No runs scheduled</div>
               ) : (
                 todayCycles.map((c, i) => {
                   const time = c.slot.split(" ")[1]
@@ -1314,7 +1315,7 @@ function OperatorApp({ user, onLogout }: { user: User; onLogout: () => void }) {
                   >
                     <span style={{ fontSize:15, color:C.textMid }}>Tomorrow</span>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <span style={{ fontSize:11, color:C.textLow }}>{tomorrowCycles.length} cycle{tomorrowCycles.length !== 1 ? "s" : ""}</span>
+                      <span style={{ fontSize:11, color:C.textLow }}>{tomorrowCycles.length} run{tomorrowCycles.length !== 1 ? "s" : ""}</span>
                       <span style={{ fontSize:14, color:C.textMid, transform: expandedDays.includes("TUE") ? "rotate(90deg)" : "none", transition:"transform 0.2s" }}>›</span>
                     </div>
                   </div>
@@ -1353,8 +1354,8 @@ function OperatorApp({ user, onLogout }: { user: User; onLogout: () => void }) {
           />
         )}
 
-        {/* ── BUYERS ── */}
-        {screen==="buyers" && <>
+        {/* ── STOPS ── */}
+        {screen==="stops" && <>
           {/* Header - TreePalm only */}
           <div style={{ padding:"28px 28px 24px" }}>
             <TreePalm size={18} style={{ color:"rgba(255,255,255,0.88)" }} />
@@ -1364,7 +1365,7 @@ function OperatorApp({ user, onLogout }: { user: User; onLogout: () => void }) {
           <div style={{ margin:"0 20px 20px", padding:"24px", backgroundColor:"rgba(0,0,0,0.6)", backdropFilter:"blur(20px)", borderRadius:12, border:"1px solid rgba(255,255,255,0.1)" }}>
             
             {/* Section: Buyers */}
-            <div style={{ fontSize:26, fontWeight:400, color:C.text, fontFamily:serif, marginBottom:20 }}>Buyers</div>
+            <div style={{ fontSize:26, fontWeight:400, color:C.text, fontFamily:serif, marginBottom:20 }}>Drop points</div>
             
             {/* Concentration bar */}
             <div style={{ display:"flex", gap:2, height:10, borderRadius:5, overflow:"hidden", marginBottom:12, backgroundColor:"rgba(255,255,255,0.05)" }}>
@@ -1400,7 +1401,7 @@ function OperatorApp({ user, onLogout }: { user: User; onLogout: () => void }) {
             <div style={{ width:48, height:1, backgroundColor:"rgba(255,255,255,0.15)", margin:"24px 0" }} />
 
             {/* Section: Markets (active only) */}
-            <div style={{ fontSize:26, fontWeight:400, color:C.text, fontFamily:serif, marginBottom:16 }}>Markets</div>
+            <div style={{ fontSize:26, fontWeight:400, color:C.text, fontFamily:serif, marginBottom:16 }}>Regions</div>
             <span style={{ fontSize:12, color:C.textHigh }}>Johannesburg · Pretoria</span>
           </div>
           
@@ -1424,9 +1425,9 @@ function OperatorApp({ user, onLogout }: { user: User; onLogout: () => void }) {
               paddingBottom:24, 
               borderBottom:"1px solid rgba(255,255,255,0.08)"
             }}>
-              <div style={{ fontSize:9, letterSpacing:"0.35em", color:"rgba(255,255,255,0.5)", textTransform:"uppercase", marginBottom:10 }}>HQ Reserve</div>
-              <div style={{ fontSize:42, fontWeight:400, color:C.amber, fontFamily:serif, letterSpacing:"-0.02em" }}>$4,217</div>
-              <div style={{ fontSize:10, color:C.textMid, marginTop:8 }}>Physical USD retained at JHB hub</div>
+              <div style={{ fontSize:9, letterSpacing:"0.35em", color:"rgba(255,255,255,0.5)", textTransform:"uppercase", marginBottom:10 }}>Parcels at hub</div>
+              <div style={{ fontSize:42, fontWeight:400, color:C.amber, fontFamily:serif, letterSpacing:"-0.02em" }}>47</div>
+              <div style={{ fontSize:10, color:C.textMid, marginTop:8 }}>Awaiting dispatch at JHB hub</div>
             </div>
             
             {/* Section: Performance */}
@@ -1434,7 +1435,7 @@ function OperatorApp({ user, onLogout }: { user: User; onLogout: () => void }) {
             
             {/* KPI grid - muted styling */}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:8 }}>
-              {[["Gross margin","R47,250"],["Cycles","9 / 9"],["Avg cycle","22 min"],["Avg margin","3.3%"]].map(([l,v])=>(
+              {[["Completed runs","47"],["Runs","9 / 9"],["Avg run","22 min"],["On-time rate","94%"]].map(([l,v])=>(
                 <div key={l as string}>
                   <div style={{ fontSize:9, letterSpacing:"0.12em", color:C.textMid, textTransform:"uppercase", marginBottom:6 }}>{l}</div>
                   <div style={{ fontSize:20, fontWeight:600, color:C.textHigh }}>{v}</div>
@@ -1446,7 +1447,7 @@ function OperatorApp({ user, onLogout }: { user: User; onLogout: () => void }) {
             <div style={{ width:48, height:1, backgroundColor:"rgba(255,255,255,0.15)", margin:"24px 0" }} />
 
             {/* Section: Cycle Times */}
-            <div style={{ fontSize:26, fontWeight:400, color:C.text, fontFamily:serif, marginBottom:16 }}>Cycle Times</div>
+            <div style={{ fontSize:26, fontWeight:400, color:C.text, fontFamily:serif, marginBottom:16 }}>Run times</div>
             {[["Imani Beauty","TUE 09:30",16],["Maria's Garden","FRI 09:30",17],["Wolf Digital","MON 09:30",18],["Ashu & Co","WED 09:30",19],["Medcare","THU 09:30",21],["Luima Property","MON 13:30",22],["Goblin Research","WED 13:30",24],["Kenny Const.","THU 13:30",35],["Crown Hair","TUE 13:30",41]].map(([co,slot,t])=>{
               const col=(t as number)<20?C.textMid:(t as number)<30?C.amber:C.red
               return <div key={co as string} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0" }}>
@@ -1463,7 +1464,7 @@ function OperatorApp({ user, onLogout }: { user: User; onLogout: () => void }) {
             <div style={{ width:48, height:1, backgroundColor:"rgba(255,255,255,0.15)", margin:"24px 0" }} />
 
             {/* Section: Buyers */}
-            <div style={{ fontSize:26, fontWeight:400, color:C.text, fontFamily:serif, marginBottom:16 }}>Buyers</div>
+            <div style={{ fontSize:26, fontWeight:400, color:C.text, fontFamily:serif, marginBottom:16 }}>Drop points</div>
             {BUYERS.map((b,i)=>{
               const col=b.avgSettlement<20?C.textMid:b.avgSettlement<45?C.amber:C.red
               return <div key={i} onClick={()=>setSelBuyer(b)} style={{ padding:"10px 0", cursor:"pointer" }}>
@@ -1480,9 +1481,9 @@ function OperatorApp({ user, onLogout }: { user: User; onLogout: () => void }) {
             <div style={{ width:48, height:1, backgroundColor:"rgba(255,255,255,0.15)", margin:"24px 0" }} />
 
             {/* Section: Exchange Limits */}
-            <div style={{ fontSize:26, fontWeight:400, color:C.text, fontFamily:serif, marginBottom:16 }}>Exchange Limits</div>
+            <div style={{ fontSize:26, fontWeight:400, color:C.text, fontFamily:serif, marginBottom:16 }}>Monthly quotas</div>
             {COMPANIES.map((co,i)=>{
-              const pct=(co.cumulative/20000000)*100
+              const pct=(co.cumulative/MONTHLY_DELIVERY_QUOTA)*100
               const col=pct<70?C.textMid:pct<90?C.amber:C.red
               return <div key={i} style={{ padding:"10px 0" }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
@@ -1490,10 +1491,10 @@ function OperatorApp({ user, onLogout }: { user: User; onLogout: () => void }) {
                     <div style={{ fontSize:13, color:C.textHigh, fontWeight:500 }}>{co.short}</div>
                     <div style={{ fontSize:10, color:C.textMid, marginTop:2 }}>{co.director}</div>
                   </div>
-                  <span style={{ fontSize:12, color:C.textHigh, fontFamily:mono }}>R{(co.cumulative/1e6).toFixed(1)}M</span>
+                  <span style={{ fontSize:12, color:C.textHigh, fontFamily:mono }}>{co.cumulative} runs</span>
                 </div>
                 <Bar pct={pct} color={col}/>
-                <div style={{ fontSize:9, color:C.textMid, marginTop:4, textAlign:"right" }}>{pct.toFixed(0)}% of R20M limit</div>
+                <div style={{ fontSize:9, color:C.textMid, marginTop:4, textAlign:"right" }}>{pct.toFixed(0)}% of {MONTHLY_DELIVERY_QUOTA} quota</div>
               </div>
             })}
           </div>
